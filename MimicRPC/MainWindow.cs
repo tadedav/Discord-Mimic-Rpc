@@ -54,6 +54,8 @@ class MainWindow : Window
 	readonly Button _btnClearCustom = new() { Content = "Clear custom app", Padding = new Thickness(8, 4), HorizontalAlignment = HorizontalAlignment.Left };
 	readonly Button _btnClearSettings = new() { Content = "Clear settings", Padding = new Thickness(8, 4), HorizontalAlignment = HorizontalAlignment.Left };
 	readonly TrayIcon _tray = new();
+	readonly NativeMenuItem _trayOpen;
+	readonly NativeMenuItem _trayExit;
 	bool _isExiting;
 	string? _updateUrl;
 
@@ -151,12 +153,7 @@ class MainWindow : Window
 		_btnClear.Classes.Add("ghost-red");
 		_btnClear.Click += (_, _) =>
 		{
-			_settings.ClearAll();
-			_chkShowTime!.IsChecked = _settings.ShowTime;
-			_chkMinimizeToTray.IsChecked = _settings.MinimizeToTray;
-			_chkAlwaysOnTop.IsChecked = _settings.AlwaysOnTop;
-			_chkAutoStartLast.IsChecked = _settings.AutoStartLast;
-			Topmost = _settings.AlwaysOnTop;
+			_settings.ClearHistory();
 			RefreshRecentPanel();
 		};
 		HoverStyle(_btnClear, "#33ED4245", "#4DED4245", "#CCED4245", "#CCED4245");
@@ -301,23 +298,21 @@ class MainWindow : Window
 		_game.TextChanged += (_, _) => OnGameTextChanged();
 		_ = CheckForUpdates();
 
-		NativeMenuItem trayOpen = new() { Header = "Open MimicRPC" };
-		trayOpen.Click += (_, _) => ShowFromTray();
-		NativeMenuItem trayExit = new() { Header = "Exit" };
-		trayExit.Click += (_, _) =>
+		_trayOpen = new() { Header = "Open MimicRPC" };
+		_trayOpen.Click += (_, _) => ShowFromTray();
+		_trayExit = new() { Header = "Exit" };
+		_trayExit.Click += (_, _) =>
 		{
 			_isExiting = true;
 			_tray.IsVisible = false;
 			(Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.Shutdown();
 		};
-		_tray.Menu = [];
-		_tray.Menu.Items.Add(trayOpen);
-		_tray.Menu.Items.Add(new NativeMenuItemSeparator());
-		_tray.Menu.Items.Add(trayExit);
+		_tray.Menu = new NativeMenu();
 		_tray.ToolTipText = "MimicRPC";
 		_tray.Icon = TryLoadTrayIcon();
 		_tray.Clicked += (_, _) => ShowFromTray();
 		TrayIcon.SetIcons(Application.Current!, [_tray]);
+		RefreshTrayMenu();
 		RefreshSettingsButtons();
 
 		Grid root = new();
@@ -521,6 +516,27 @@ class MainWindow : Window
 			_recentPanel.Children.Add(b);
 		}
 		UpdateWindowHeight();
+		RefreshTrayMenu();
+	}
+
+	void RefreshTrayMenu()
+	{
+		NativeMenu? menu = _tray.Menu;
+		if (menu is null || _trayOpen is null) return;
+		menu.Items.Clear();
+		menu.Items.Add(_trayOpen);
+		menu.Items.Add(new NativeMenuItemSeparator());
+		foreach (RecentGame g in _settings.Recent)
+		{
+			RecentGame cap = g;
+			bool active = _btnStart is { IsEnabled: false } && cap.Id == _current.Id;
+			NativeMenuItem item = new() { Header = active ? $"● {cap.Name}" : $"▶ {cap.Name}" };
+			item.Click += (_, _) => FastStart(cap.Name, cap.Id, cap.IsCustom);
+			menu.Items.Add(item);
+		}
+		if (_settings.Recent.Count > 0)
+			menu.Items.Add(new NativeMenuItemSeparator());
+		menu.Items.Add(_trayExit);
 	}
 
 	void FastStart(string name, string id, bool isCustom = false)
@@ -597,7 +613,15 @@ class MainWindow : Window
 	}
 
 	void HideToTray() { SetMacDockPolicy(false); ShowInTaskbar = false; Hide(); }
-	void ShowFromTray() { ShowInTaskbar = true; SetMacDockPolicy(true); Show(); WindowState = WindowState.Normal; Activate(); }
+	void ShowFromTray()
+	{
+		ShowInTaskbar = true;
+		SetMacDockPolicy(true);
+		Show();
+		WindowState = WindowState.Normal;
+		Activate();
+		Dispatcher.UIThread.InvokeAsync(UpdateWindowHeight, DispatcherPriority.Background);
+	}
 
 	void RefreshSettingsButtons()
 	{
@@ -722,6 +746,11 @@ class MainWindow : Window
 		{
 			MaxHeight = 280,
 			Content = Stack(14, 14,
+				Entry("Beta 0.6", "May 2026", [
+					"Recent games in system tray",
+					"Fixed app icon on macOS",
+					"Fixed window height after restoring from tray"
+				]),
 				Entry("Beta 0.5", "May 2026", [
 					"Auto-start last session, always on top",
 					"Run at system startup, update check",

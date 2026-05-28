@@ -7,9 +7,14 @@
 		<RootNamespace>MimicRPC</RootNamespace>
 		<AssemblyName>MimicRPC</AssemblyName>
 		<ApplicationIcon>../assets/app.ico</ApplicationIcon>
+		<CFBundleIconFile>app</CFBundleIconFile>
+		<CFBundleDisplayName>MimicRPC</CFBundleDisplayName>
+		<CFBundleName>MimicRPC</CFBundleName>
+		<CFBundleIdentifier>com.mimicropc</CFBundleIdentifier>
 	</PropertyGroup>
 	<ItemGroup>
 		<EmbeddedResource Include="../assets/app.png" LogicalName="tray.png" />
+		<AppleBundleResource Include="../assets/app.icns" />
 	</ItemGroup>
 	<ItemGroup>
 		<PackageReference Include="Avalonia" Version="11.2.7" />

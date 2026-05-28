@@ -8,5 +8,6 @@ installer/Output/
 .vs/
 *.user
 .idea/
+.markdownlint.json
 
 discord.har

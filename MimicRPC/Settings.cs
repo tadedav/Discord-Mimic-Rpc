@@ -41,6 +41,7 @@ sealed class Settings
 	public void SaveCustom(CustomAppSettings data) { Custom = data; Save(); }
 
 	public void ClearCustom() { Custom = null; Save(); }
+	public void ClearHistory() { Recent.Clear(); Save(); }
 	public void ClearPreferences() { ShowTime = true; MinimizeToTray = false; HasAskedAboutTray = false; AlwaysOnTop = false; AutoStartLast = false; Save(); }
 
 	public void ClearAll()

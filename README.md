@@ -2,11 +2,16 @@
 
 Cross-platform (Windows, Linux, macOS) app that fakes any game as your Discord activity using Discord's own app IDs. Ships with ~23k game IDs.
 
-> Won't work for Discord quests.
+> **Warning:** Won't work for Discord quests.
+
+<img src="assets/screenshot.png" alt="MimicRPC screenshot" width="250">
 
 **Built with** - [.NET 10](https://dotnet.microsoft.com), [Avalonia 11](https://avaloniaui.net), [discord-rpc-csharp](https://github.com/Lachee/discord-rpc-csharp)
 
-> The app is not code-signed so Windows SmartScreen and macOS Gatekeeper will warn you. On Windows: click "More info" → "Run anyway". On macOS: right-click the app → Open → Open.
+> **Warning:** The app is not code-signed so Windows SmartScreen and macOS Gatekeeper will warn you.
+
+- On Windows: click "More info" → "Run anyway".
+- On macOS: right-click the app → Open → Open, or go to **System Settings → Privacy & Security** and click **"Open Anyway"** next to the blocked app.
 
 ## Download
 

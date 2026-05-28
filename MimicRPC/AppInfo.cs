@@ -1,6 +1,6 @@
 static class AppInfo
 {
-	public const string VersionTag = "0.5";
+	public const string VersionTag = "0.6";
 	public const string Version = $"Beta {VersionTag}";
 	public const string GithubOwner = "tadedav";
 	public const string GithubRepoName = "Discord-Mimic-Rpc";

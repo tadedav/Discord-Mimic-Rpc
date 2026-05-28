@@ -1,6 +1,6 @@
 [Setup]
 AppName=MimicRPC
-AppVersion=0.3
+AppVersion=0.6
 AppPublisher=tadedav
 DefaultDirName={autopf}\MimicRPC
 DefaultGroupName=MimicRPC
