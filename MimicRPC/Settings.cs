@@ -8,6 +8,11 @@ sealed class Settings
 
 	public List<RecentGame> Recent { get; set; } = [];
 	public CustomAppSettings? Custom { get; set; }
+	public bool ShowTime { get; set; } = true;
+	public bool MinimizeToTray { get; set; } = false;
+	public bool HasAskedAboutTray { get; set; } = false;
+	public bool AlwaysOnTop { get; set; } = false;
+	public bool AutoStartLast { get; set; } = false;
 
 	public static Settings Load()
 	{
@@ -20,23 +25,30 @@ sealed class Settings
 		return new();
 	}
 
-	public void AddRecent(string name, string id, bool isCustom = false)
+	public void AddRecent(string name, string id, bool isCustom = false, int? partySize = null, int? partyMax = null)
 	{
 		Recent.RemoveAll(r => r.Id == id);
-		Recent.Insert(0, new RecentGame { Name = name, Id = id, IsCustom = isCustom });
+		Recent.Insert(0, new RecentGame { Name = name, Id = id, IsCustom = isCustom, PartySize = partySize, PartyMax = partyMax });
 		if (Recent.Count > 5) Recent.RemoveRange(5, Recent.Count - 5);
 		Save();
 	}
 
+	public void SetShowTime(bool v) { ShowTime = v; Save(); }
+	public void SetMinimizeToTray(bool v) { MinimizeToTray = v; Save(); }
+	public void SetHasAskedAboutTray(bool v) { HasAskedAboutTray = v; Save(); }
+	public void SetAlwaysOnTop(bool v) { AlwaysOnTop = v; Save(); }
+	public void SetAutoStartLast(bool v) { AutoStartLast = v; Save(); }
 	public void SaveCustom(CustomAppSettings data) { Custom = data; Save(); }
 
 	public void ClearCustom() { Custom = null; Save(); }
+	public void ClearPreferences() { ShowTime = true; MinimizeToTray = false; HasAskedAboutTray = false; AlwaysOnTop = false; AutoStartLast = false; Save(); }
 
 	public void ClearAll()
 	{
 		try { if (File.Exists(_path)) File.Delete(_path); } catch { }
 		Recent.Clear();
 		Custom = null;
+		ShowTime = true; MinimizeToTray = false; HasAskedAboutTray = false; AlwaysOnTop = false; AutoStartLast = false;
 	}
 
 	void Save()
@@ -56,6 +68,8 @@ sealed class RecentGame
 	public string Name { get; set; } = "";
 	public string Id { get; set; } = "";
 	public bool IsCustom { get; set; }
+	public int? PartySize { get; set; }
+	public int? PartyMax { get; set; }
 }
 
 sealed class CustomAppSettings
