@@ -1,0 +1,12 @@
+.DS_Store
+
+bin/
+obj/
+publish/
+installer/Output/
+
+.vs/
+*.user
+.idea/
+
+discord.har

@@ -1,0 +1,155 @@
+name: Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release tag (e.g. v0.3)'
+        required: true
+        default: 'v0.3'
+
+jobs:
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Publish
+        run: >
+          dotnet publish MimicRPC/MimicRPC.csproj
+          -c Release -r win-x64
+          -p:PublishAot=true
+          -p:PublishSingleFile=false
+          -p:InvariantGlobalization=true
+          -o publish/win
+
+      - name: Build installer
+        shell: pwsh
+        run: iscc installer\MimicRPC.iss
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MimicRPC-Windows-Setup
+          path: installer/Output/MimicRPC-Windows-Setup.exe
+
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install native deps
+        run: sudo apt-get install -y clang zlib1g-dev libkrb5-dev build-essential
+
+      - name: Publish
+        run: >
+          dotnet publish MimicRPC/MimicRPC.csproj
+          -c Release -r linux-x64
+          -p:PublishAot=true
+          -p:InvariantGlobalization=true
+          -o publish/linux
+
+      - name: Package
+        run: tar -czf MimicRPC-Linux.tar.gz -C publish/linux MimicRPC
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MimicRPC-Linux
+          path: MimicRPC-Linux.tar.gz
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Publish arm64
+        run: >
+          dotnet publish MimicRPC/MimicRPC.csproj
+          -c Release -r osx-arm64
+          -p:PublishAot=true
+          -p:InvariantGlobalization=true
+          -o publish/osx-arm64
+
+      - name: Publish x64
+        run: >
+          dotnet publish MimicRPC/MimicRPC.csproj
+          -c Release -r osx-x64
+          -p:PublishAot=true
+          -p:InvariantGlobalization=true
+          -o publish/osx-x64
+
+      - name: Stitch universal binary
+        run: |
+          lipo -create \
+            publish/osx-arm64/MimicRPC \
+            publish/osx-x64/MimicRPC \
+            -output publish/MimicRPC
+
+      - name: Bundle .app
+        run: |
+          mkdir -p dmg_stage/MimicRPC.app/Contents/MacOS
+          mkdir -p dmg_stage/MimicRPC.app/Contents/Resources
+          cp publish/MimicRPC dmg_stage/MimicRPC.app/Contents/MacOS/MimicRPC
+          chmod +x dmg_stage/MimicRPC.app/Contents/MacOS/MimicRPC
+          [ -f assets/app.icns ] && cp assets/app.icns dmg_stage/MimicRPC.app/Contents/Resources/app.icns || true
+          cat > dmg_stage/MimicRPC.app/Contents/Info.plist << 'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>CFBundleExecutable</key><string>MimicRPC</string>
+            <key>CFBundleIdentifier</key><string>com.mimicrpc.app</string>
+            <key>CFBundleName</key><string>MimicRPC</string>
+            <key>CFBundleVersion</key><string>0.3</string>
+            <key>CFBundleShortVersionString</key><string>0.3</string>
+            <key>CFBundleIconFile</key><string>app.icns</string>
+            <key>NSHighResolutionCapable</key><true/>
+          </dict></plist>
+          PLIST
+
+      - name: Create DMG
+        run: |
+          ln -s /Applications dmg_stage/Applications
+          hdiutil create \
+            -volname MimicRPC \
+            -srcfolder dmg_stage \
+            -ov -format UDZO \
+            MimicRPC-Mac-Universal.dmg
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MimicRPC-Mac-Universal
+          path: MimicRPC-Mac-Universal.dmg
+
+  release:
+    needs: [windows, linux, macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        run: |
+          gh release create "${{ github.event.inputs.version }}" \
+            dist/MimicRPC-Windows-Setup.exe \
+            dist/MimicRPC-Linux.tar.gz \
+            dist/MimicRPC-Mac-Universal.dmg \
+            --title "MimicRPC ${{ github.event.inputs.version }}" \
+            --repo "${{ github.repository }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
