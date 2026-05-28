@@ -8,6 +8,9 @@ on:
         required: true
         default: 'v0.3'
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
 
   windows:
@@ -23,9 +26,7 @@ jobs:
         run: >
           dotnet publish MimicRPC/MimicRPC.csproj
           -c Release -r win-x64
-          -p:PublishAot=true
-          -p:PublishSingleFile=false
-          -p:InvariantGlobalization=true
+          -p:SelfContained=true
           -o publish/win
 
       - name: Build installer
@@ -46,19 +47,17 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Install native deps
-        run: sudo apt-get install -y clang zlib1g-dev libkrb5-dev build-essential
-
       - name: Publish
         run: >
           dotnet publish MimicRPC/MimicRPC.csproj
           -c Release -r linux-x64
-          -p:PublishAot=true
-          -p:InvariantGlobalization=true
+          -p:SelfContained=true
           -o publish/linux
 
       - name: Package
-        run: tar -czf MimicRPC-Linux.tar.gz -C publish/linux MimicRPC
+        run: |
+          cp -r publish/linux MimicRPC-Linux
+          tar -czf MimicRPC-Linux.tar.gz MimicRPC-Linux
 
       - uses: actions/upload-artifact@v4
         with:
@@ -78,30 +77,23 @@ jobs:
         run: >
           dotnet publish MimicRPC/MimicRPC.csproj
           -c Release -r osx-arm64
-          -p:PublishAot=true
-          -p:InvariantGlobalization=true
+          -p:SelfContained=true
           -o publish/osx-arm64
 
       - name: Publish x64
         run: >
           dotnet publish MimicRPC/MimicRPC.csproj
           -c Release -r osx-x64
-          -p:PublishAot=true
-          -p:InvariantGlobalization=true
+          -p:SelfContained=true
           -o publish/osx-x64
-
-      - name: Stitch universal binary
-        run: |
-          lipo -create \
-            publish/osx-arm64/MimicRPC \
-            publish/osx-x64/MimicRPC \
-            -output publish/MimicRPC
 
       - name: Bundle .app
         run: |
           mkdir -p dmg_stage/MimicRPC.app/Contents/MacOS
           mkdir -p dmg_stage/MimicRPC.app/Contents/Resources
-          cp publish/MimicRPC dmg_stage/MimicRPC.app/Contents/MacOS/MimicRPC
+          cp -R publish/osx-arm64/. dmg_stage/MimicRPC.app/Contents/MacOS/
+          lipo -create publish/osx-arm64/MimicRPC publish/osx-x64/MimicRPC \
+            -output dmg_stage/MimicRPC.app/Contents/MacOS/MimicRPC
           chmod +x dmg_stage/MimicRPC.app/Contents/MacOS/MimicRPC
           [ -f assets/app.icns ] && cp assets/app.icns dmg_stage/MimicRPC.app/Contents/Resources/app.icns || true
           cat > dmg_stage/MimicRPC.app/Contents/Info.plist << 'PLIST'
@@ -117,6 +109,9 @@ jobs:
             <key>NSHighResolutionCapable</key><true/>
           </dict></plist>
           PLIST
+
+      - name: Sign app (ad-hoc)
+        run: codesign --deep --force --sign - dmg_stage/MimicRPC.app
 
       - name: Create DMG
         run: |

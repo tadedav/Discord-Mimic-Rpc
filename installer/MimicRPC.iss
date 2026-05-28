@@ -13,7 +13,7 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 
 [Files]
-Source: "..\publish\win\MimicRPC.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\publish\win\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\MimicRPC"; Filename: "{app}\MimicRPC.exe"
