@@ -8,7 +8,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using System.Runtime.InteropServices;
 
-class MainWindow : Window
+partial class MainWindow : Window
 {
 	readonly Rpc _rpc = new();
 	readonly DateTime _appLaunch = DateTime.UtcNow;
@@ -239,7 +239,7 @@ class MainWindow : Window
 				UpdateWindowHeight();
 				if (_settings.AutoStartLast && _settings.Recent.Count > 0)
 					FastStart(_settings.Recent[0].Name, _settings.Recent[0].Id, _settings.Recent[0].IsCustom);
-			}, DispatcherPriority.Background);
+			}, DispatcherPriority.Loaded);
 		};
 
 		_statusGame = new TextBlock { Text = "● Not running", Foreground = MutedBrush };
@@ -495,6 +495,10 @@ class MainWindow : Window
 		if (_settings.Recent.Count == 0)
 		{
 			_recentPanel.Children.Add(new TextBlock { Text = "No recent games yet.", Opacity = 0.45, FontSize = 12 });
+			Button goToGame = new() { Content = "Search for a game", HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(10, 6) };
+			goToGame.Classes.Add("accent");
+			goToGame.Click += (_, _) => _tabs.SelectedIndex = 1;
+			_recentPanel.Children.Add(goToGame);
 			UpdateWindowHeight();
 			return;
 		}
@@ -530,7 +534,7 @@ class MainWindow : Window
 		{
 			RecentGame cap = g;
 			bool active = _btnStart is { IsEnabled: false } && cap.Id == _current.Id;
-			NativeMenuItem item = new() { Header = active ? $"● {cap.Name}" : $"▶ {cap.Name}" };
+			NativeMenuItem item = new() { Header = active ? $"▶ {cap.Name}" : cap.Name };
 			item.Click += (_, _) => FastStart(cap.Name, cap.Id, cap.IsCustom);
 			menu.Items.Add(item);
 		}
@@ -543,15 +547,19 @@ class MainWindow : Window
 	{
 		if (!_btnStart.IsEnabled) { _rpc.Stop(); _ticker.Stop(); }
 		_current = (name, id);
-		_rpcSince = DateTime.UtcNow;
+		_rpcSince = isCustom ? StampCustom() : Stamp() ?? DateTime.UtcNow;
 		if (isCustom && _settings.Custom is CustomAppSettings cs && cs.AppId == id)
 		{
 			_ = int.TryParse(cs.PartySize, out int ps);
 			_ = int.TryParse(cs.PartyMax, out int pm);
 			_rpc.Set(id, _rpcSince, cs.Details, cs.State, cs.LargeKey, cs.LargeText, cs.SmallKey, cs.SmallText, ps, pm, cs.Btn1Label, cs.Btn1Url, cs.Btn2Label, cs.Btn2Url);
+			_settings.AddRecent(name, id, isCustom: true, partySize: ps > 0 ? ps : null, partyMax: pm > 0 ? pm : null);
 		}
 		else
+		{
 			_rpc.Set(id, _rpcSince);
+			_settings.AddRecent(name, id);
+		}
 		SetStatus(name, true);
 		_ticker.Start();
 		_btnStart.IsEnabled = false;
@@ -563,10 +571,8 @@ class MainWindow : Window
 
 	void UpdateWindowHeight()
 	{
-		if (!IsVisible || WindowState != WindowState.Normal) return;
-		SizeToContent = SizeToContent.Manual;   // force change event even if already Height
-		SizeToContent = SizeToContent.Height;
-		Dispatcher.UIThread.InvokeAsync(() => SizeToContent = SizeToContent.Manual, DispatcherPriority.Background);
+		if (WindowState == WindowState.Normal)
+			InvalidateMeasure();
 	}
 
 	protected override void OnClosed(EventArgs e) { _ticker.Stop(); _rpc.Dispose(); _tray.IsVisible = false; base.OnClosed(e); }
@@ -620,7 +626,7 @@ class MainWindow : Window
 		Show();
 		WindowState = WindowState.Normal;
 		Activate();
-		Dispatcher.UIThread.InvokeAsync(UpdateWindowHeight, DispatcherPriority.Background);
+		Dispatcher.UIThread.InvokeAsync(UpdateWindowHeight, DispatcherPriority.Loaded);
 	}
 
 	void RefreshSettingsButtons()
@@ -746,6 +752,10 @@ class MainWindow : Window
 		{
 			MaxHeight = 280,
 			Content = Stack(14, 14,
+				Entry("Beta 0.8", "June 2026", [
+					"Fixed window height issues",
+					"Tray menu and UI improvements"
+				]),
 				Entry("Beta 0.6", "May 2026", [
 					"Recent games in system tray",
 					"Fixed app icon on macOS",
